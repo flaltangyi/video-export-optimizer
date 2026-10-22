@@ -1,0 +1,6 @@
+interface:
+  display_name: "视频导出优化"
+  short_description: "在保留字幕、图层和画质要求的前提下，减少视频导出等待、交接和中间文件"
+  default_prompt: "使用 $video-export-optimizer 按本项目的画质要求选择可用的较快导出路径并验证成片。"
+policy:
+  allow_implicit_invocation: true
