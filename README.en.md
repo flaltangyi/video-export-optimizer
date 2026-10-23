@@ -12,6 +12,19 @@ Once installed, an Agent that supports implicit skill matching can select this s
 
 The package combines export guidance with a read-only inspection tool. Rendering is still performed by the project's Remotion, HyperFrames, or other engine; the project must provide the necessary capabilities or integration. For HyperFrames, this skill provides guidance on choosing and adapting an export path; it does not include a general-purpose HyperFrames renderer. Installing this package will not automatically convert arbitrary projects to WebCodecs or take over every export button in an editing application.
 
+## Platforms and agent hosts
+
+**The shared workflow targets macOS, Windows, and Linux and can be integrated with other agent hosts.** It checks the actual exporting environment's OS version, architecture, browser/Electron, project dependencies, GPU, and driver before choosing a path. Apple hardware and Codex are not required by the shared workflow.
+
+| Environment | What the skill must establish | Current validation scope |
+|---|---|---|
+| macOS | OS/chip, runtime, project, and actual codec capabilities | Existing M4 Mac project measurements; not all Macs |
+| Windows | Windows version/edition/build, x64/ARM64, native/WSL/Server context, browser, GPU driver, required media components | Adaptation rules added; this project's Windows video exports have not been accepted |
+| Linux | Distribution/version/kernel, desktop/headless/container context, browser build, driver, and GPU device access | Adaptation rules added; this project's Linux video exports have not been accepted |
+| Other agent hosts | Native Agent Skills or project-rule support, available tools/permissions, loading, and triggering | Shared entry point is independent of Codex; automatic selection has not been tested in every host |
+
+A sufficiently recent OS does not guarantee every hardware codec. Browser builds may differ, and native Windows and WSL need separate checks. See [platform and agent portability](references/platform-agent-compatibility.md). The 7.39× and other measurements below remain specific to the tested Mac environment; they are not Windows/Linux performance promises.
+
 ## Remotion and HyperFrames support
 
 | Project | Guidance provided by this skill | Integration requirements |
@@ -37,13 +50,15 @@ For the initial integration, follow this sequence: check the environment → add
 
 Install the skill directory from this repository in a location supported by your Agent. Codex can install a GitHub skill through the built-in `$skill-installer`. Alternatively, copy this directory to the user skill directory, keeping `SKILL.md` at the root of `video-export-optimizer/`.
 
+Other Agent Skills hosts should load the same directory using their current documented location. Hosts with project rules can read `SKILL.md` and the relevant references during export tasks. `agents/openai.yaml` is optional Codex-specific metadata; neither the shared workflow nor the Python helpers depends on it. Installation paths, policy fields, and automatic discovery are host-specific.
+
 The current [official skills documentation](https://developers.openai.com/codex/skills/) lists `~/.agents/skills/` as the user location. Some existing Codex environments use `~/.codex/skills/`. Use the location that your current instance actually loads; do not install duplicate copies of the same skill in both locations.
 
 Example of a normal request:
 
 > Export this project as a 1080×1920, 30 fps MP4. Preserve the current subtitles, transitions, and audio tracks, and use the project's approved quality settings.
 
-The package's `agents/openai.yaml` enables `allow_implicit_invocation: true`. Implicit matching is decided by the host Agent; it is not an interceptor that guarantees the skill runs every time. Installing the files and confirming that the skill was automatically selected in a real session are two separate checks.
+The package's `agents/openai.yaml` enables `allow_implicit_invocation: true` for the corresponding Codex host; other hosts use their own configuration. Implicit matching is decided by the host Agent; it is not an interceptor that guarantees the skill runs every time. Installing the files and confirming that the skill was automatically selected in a real session are two separate checks.
 
 ### Connect it to a project's regular export workflow
 
@@ -78,11 +93,24 @@ See [pipeline routing (Chinese)](references/pipeline-routing.md) for more implem
 
 ## Read-only export inspection
 
-Requires Python 3 and a separately available `ffprobe`. Full decoding additionally requires `ffmpeg`. Tool paths can be supplied explicitly; the script does not download or install dependencies and does not modify the video.
+The helpers use the Python 3.9+ standard library and are written for portability across the three platforms. This revision was executed on macOS; Windows/Linux runtime validation remains pending. The environment helper collects basic OS information, without inspecting the browser/GPU or proving hardware encoding:
+
+```bash
+python3 scripts/inspect_environment.py --output environment-report.json
+```
+
+Video inspection additionally requires a separately available `ffprobe`. Full decoding requires `ffmpeg`. Tool paths can be supplied explicitly; the scripts do not download/install dependencies or modify the video. JSON reports use UTF-8 and never overwrite existing reports.
 
 ```bash
 python3 scripts/inspect_export.py --help
 python3 scripts/inspect_export.py --input output.mp4 --output export-report.json
+```
+
+On Windows, use `py -3` when the Python launcher is installed, or the actual Python executable. For example:
+
+```powershell
+py -3 scripts/inspect_environment.py --output environment-report.json
+py -3 scripts/inspect_export.py --input "D:\Videos\成片.mp4" --ffprobe "C:\Tools\ffmpeg\bin\ffprobe.exe" --output export-report.json
 ```
 
 Pass the approved dimensions, frame rate, duration, or actual bitrate range through the corresponding arguments. The report can check technical specifications and decoding. By itself, it cannot establish visual clarity, preservation of subtitles and layers, audiovisual synchronization, hardware encoding use, or compatibility with every device.
@@ -90,6 +118,8 @@ Pass the approved dimensions, frame rate, duration, or actual bitrate range thro
 ## Measured results and limitations
 
 These are summaries of the author's project measurements on an M4 Mac. The full video used source assets, subtitles, layers, and the original timeline: 364.133 seconds, 10,924 frames, 1080×1920, 30 fps. Existing 3D clips were used as inputs; upstream 3D rendering was not repeated. The three experiments use different timing boundaries and repetition counts, so they must be read separately rather than combined into a framework ranking.
+
+**Cross-platform workflow coverage does not make these cross-platform measurements.** Speed, actual hardware use, and output quality need validation on the corresponding Windows/Linux OS/runtime/driver/project configuration. Other agent hosts' loading and automatic selection also require separate evidence.
 
 ### Remotion: two full-length export paths, 3 runs each
 

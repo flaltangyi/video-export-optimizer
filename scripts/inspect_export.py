@@ -54,6 +54,9 @@ def executable(value, name):
 
 
 def main():
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8', errors='replace')
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--input', required=True, type=Path)
     parser.add_argument('--ffprobe', help='ffprobe executable; defaults to PATH')
@@ -85,7 +88,7 @@ def main():
 
     def command(argv):
         report['commands'].append([str(x) for x in argv])
-        p = subprocess.run([str(x) for x in argv], capture_output=True, text=True,
+        p = subprocess.run([str(x) for x in argv], capture_output=True, text=True, encoding='utf-8',
                            timeout=args.timeout_seconds, errors='replace')
         if p.returncode:
             raise RuntimeError(json.dumps(dict(executable=str(argv[0]), exitCode=p.returncode,
@@ -177,9 +180,11 @@ def main():
                        '-map', '0:v:0', '-map', '0:a?', '-c:v', 'rawvideo', '-c:a', 'pcm_s16le',
                        '-progress', 'pipe:1', '-nostats', '-f', 'null', '-'])
             counts = [int(s.split('=', 1)[1].strip()) for s in progress.splitlines() if s.startswith('frame=')]
-            decode_complete = 'progress=end' in progress
+            decoded_frames = counts[-1] if counts else None
+            progress_ended = 'progress=end' in progress
+            decode_complete = progress_ended and decoded_frames is not None and decoded_frames > 0
             report['strictDecode'] = dict(status='PASS' if decode_complete else 'FAILED_OR_UNSUPPORTED',
-                                          decodedVideoFrames=counts[-1] if counts else None,
+                                          decodedVideoFrames=decoded_frames, progressEnded=progress_ended,
                                           meaning='Full first-video and audio decoding to null sink; not real-time playback, visual quality, audio listening, or sync acceptance')
             check('strictDecodeCompleted', decode_complete, decode_complete, True)
         after = media.stat()
@@ -199,7 +204,7 @@ def main():
                                          meaning='Decode command failed; inspect tool error before attributing this to damaged media')
     if args.output:
         try:
-            with args.output.open('x') as handle:
+            with args.output.open('x', encoding='utf-8') as handle:
                 json.dump(report, handle, ensure_ascii=False, indent=2)
                 handle.write('\n')
         except OSError as error:

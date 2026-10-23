@@ -12,6 +12,19 @@
 
 这是导出方法与只读验收工具的组合。实际渲染仍由项目中的Remotion、HyperFrames或其他引擎执行；项目需要相应能力或适配。安装此包不会自动把任意工程转换成WebCodecs，也不会接管剪辑软件的所有导出按钮。
 
+## 平台与智能体范围
+
+**通用流程面向macOS、Windows、Linux，也可供其他智能体接入。** Skill先检查实际执行端的系统版本、架构、浏览器／Electron、工程依赖、GPU与驱动，再选择可用路径；不要求使用Apple硬件或Codex。
+
+| 环境 | Skill需要确认 | 当前验证范围 |
+|---|---|---|
+| macOS | 系统与芯片、运行时、工程及实际编码能力 | 现有M4 Mac个案实测；不代表所有Mac |
+| Windows | Windows版本／edition／build、x64／ARM64、原生或WSL／Server、浏览器与GPU驱动、所需媒体组件 | 已加入适配规则；未完成本项目Windows视频导出验收 |
+| Linux | 发行版／版本／内核、桌面或headless／容器、浏览器构建、驱动与GPU设备访问 | 已加入适配规则；未完成本项目Linux视频导出验收 |
+| 其他智能体 | 是否支持Agent Skills或项目规则、实际可用工具与权限、技能加载和触发方式 | 通用入口不绑定Codex；未逐一实测其他宿主的自动匹配 |
+
+没有一个“系统版本足够新”就保证所有硬编可用的门槛；同名浏览器也可能有不同编解码构建。Windows原生与WSL需分别检测。详见[跨平台与跨智能体适配](references/platform-agent-compatibility.md)。下方7.39倍等成绩仍限定实际测过的Mac环境，不能作为Windows／Linux的速度保证。
+
 ## Remotion与HyperFrames支持范围
 
 | 工程 | 本Skill提供的指导 | 接入条件 |
@@ -37,13 +50,15 @@
 
 把本仓库的技能目录安装到当前Agent支持的技能位置。Codex可通过内置`$skill-installer`安装GitHub技能；也可以把本目录复制到用户技能目录，保持`SKILL.md`位于`video-export-optimizer/`根部。
 
+其他支持Agent Skills的宿主按其当前官方说明加载同一目录；只支持项目规则的宿主，可在导出任务中读取`SKILL.md`及相关参考文件。`agents/openai.yaml`是可选的Codex专用元数据，通用流程和Python脚本不依赖该文件。不要把某个宿主的安装位置、策略字段或自动触发能力当作所有智能体的统一约定。
+
 当前[官方技能文档](https://developers.openai.com/codex/skills/)列出的用户位置是`~/.agents/skills/`；部分现有Codex环境使用`~/.codex/skills/`。选择当前实例实际加载的位置，不在两处重复安装同名副本。
 
 正常请求示例：
 
 > 把这个项目导出为1080×1920、30fps的MP4，保留当前字幕、转场和音轨，按项目已经确认的画质设置输出。
 
-本包的`agents/openai.yaml`启用了`allow_implicit_invocation: true`。隐式匹配由宿主Agent决定，不是“每次一定调用”的硬性拦截器。文件安装完成与真实会话中已经自动选中，是两个需要分别验证的状态。
+本包的`agents/openai.yaml`为相应Codex宿主启用了`allow_implicit_invocation: true`；其他宿主使用各自的配置。隐式匹配由宿主Agent决定，不是“每次一定调用”的硬性拦截器。文件安装完成与真实会话中已经自动选中，是两个需要分别验证的状态。
 
 ### 接到固定项目的导出流程
 
@@ -73,11 +88,24 @@ video-export-optimizer技能处理导出阶段，沿用本项目已确认的内�
 
 ## 只读成片检查
 
-需要Python3与独立可用的`ffprobe`。完整解码另需`ffmpeg`；工具路径可显式提供，脚本不下载安装依赖、不修改视频。
+附带脚本使用Python3.9+标准库，按三平台可移植方式编写；本轮实际运行检查在Mac，Windows／Linux仍待实机验证。先用环境助手收集基础系统信息；它不检查浏览器／GPU，也不证明硬编。
+
+```bash
+python3 scripts/inspect_environment.py --output environment-report.json
+```
+
+成片检查另需独立可用的`ffprobe`。完整解码另需`ffmpeg`；工具路径可显式提供，脚本不下载安装依赖、不修改视频。JSON按UTF-8写入，不覆盖旧报告。
 
 ```bash
 python3 scripts/inspect_export.py --help
 python3 scripts/inspect_export.py --input output.mp4 --output export-report.json
+```
+
+Windows装有Python launcher时可用`py -3`代替`python3`，否则使用实际Python路径；例如：
+
+```powershell
+py -3 scripts/inspect_environment.py --output environment-report.json
+py -3 scripts/inspect_export.py --input "D:\Videos\成片.mp4" --ffprobe "C:\Tools\ffmpeg\bin\ffprobe.exe" --output export-report.json
 ```
 
 把已确认的尺寸、帧率、时长或实际码率范围作为相应参数传入。报告能检查技术规格与解码，不能单独证明视觉清晰度、字幕图层保留、音画同步、硬件启用或所有设备兼容。
@@ -85,6 +113,8 @@ python3 scripts/inspect_export.py --input output.mp4 --output export-report.json
 ## 实测来源和边界
 
 以下是作者在M4 Mac上的项目实测摘要。原素材全片为364.133秒、10,924帧、1080×1920、30fps，保留原素材、字幕、图层和时间线；已有三维短镜头作为素材使用，没有重算上游三维渲染。三组实验的计时口径和重复次数不同，分别阅读，不合并成跨框架排名。
+
+**方法覆盖三平台，测量结果没有跨平台外推。** Windows／Linux的导出速度、实际硬编与画质应在对应系统／版本／驱动／工程上验证；其他智能体的加载与自动匹配也应另验。
 
 ### Remotion全片：两条完整路线，各3次
 

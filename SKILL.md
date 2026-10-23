@@ -9,6 +9,8 @@ description: 导出视频、渲染成片、生成MP4或优化视频导出速度�
 
 本技能允许隐式调用：用户不必输入技能名。它指导当前Agent的导出任务；不会拦截所有软件的导出按钮，也不是新的渲染引擎。固定项目的常规导出任务可以通过项目指令接入，示例见[仓库README](README.md)。
 
+通用流程面向macOS、Windows和Linux，不绑定Codex。支持Agent Skills的宿主可加载本目录；其他宿主可将流程接入既有项目规则。安装位置、自动匹配、工具权限由宿主决定；`agents/openai.yaml`只是Codex专用元数据，不能当作其他智能体已接入的证据。平台／版本／智能体兼容规则见[跨平台与跨智能体适配](references/platform-agent-compatibility.md)。
+
 HyperFrames同样适用：提供导出选路、减少PNG与逐帧往返、工程适配和验收指导。当前包不附通用HyperFrames渲染器；需要逐项目确认DOM、视频叠层与复杂效果的保留，不能把任意HTML/CSS自动转换成等价Canvas。中英文说明见[中文](README.md)／[English](README.en.md)。
 
 ## 先确定本次交付要求
@@ -26,10 +28,13 @@ HyperFrames同样适用：提供导出选路、减少PNG与逐帧往返、工程
 
 本技能不要求所有工程都先具备WebCodecs；采用WebCodecs路径才需要相应能力。WebCodecs是浏览器提供的接口，不是单独安装一个同名软件包就能启用。
 
+先确认实际执行端的操作系统版本／构建号、架构、原生或WSL／容器／远程环境、浏览器／Electron及框架版本、GPU与驱动。Windows区分版本、N／Server与原生／WSL；Linux记录发行版、版本、内核、图形会话与GPU设备权限。不要按系统名称套用硬编开关、最低版本或Mac参数。按需用只读[inspect_environment.py](scripts/inspect_environment.py)收集基础信息；它不检测WebCodecs或证明硬编。
+
 - 在实际导出所在的浏览器或Electron渲染进程中，检查安全上下文、`VideoEncoder`与`VideoFrame`；采用直接解码时另查所需解码接口。不能仅以电脑安装了某个浏览器或Node.js作为通过依据。
 - 按本次编码、尺寸、帧率和码率等配置调用`VideoEncoder.isConfigSupported()`；硬件加速另需运行时证据，不能由接口存在或`prefer-hardware`推定。
 - 确认项目已接通原素材取帧、字幕图层合成、编码、音轨和MP4封装。使用Remotion Web Renderer时检查配套版本及组件支持范围；安装技能不会自动生成这套适配。
 - 首次接入检查已有依赖、补齐本次必要能力并用代表片段验证，将通过的配置保留在工程中；后续普通导出复用有效配置，不每次重装或全量测速。缺少能力时先沿用可用的正确路径，不能假装硬编已启用。
+- 验证配置绑定实际系统／运行时／驱动／工程版本；这些条件改变或迁移平台后，重新检查受影响的能力与代表镜头。使用宿主支持的参数调用、路径和临时目录，避免依赖固定Mac路径、POSIX管道或某一家智能体的私有工具。
 
 ## 沿现有工程选择路径
 

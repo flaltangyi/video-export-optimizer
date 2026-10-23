@@ -16,6 +16,8 @@
 
 ## 运行环境检查
 
+先按[跨平台与跨智能体适配](platform-agent-compatibility.md)识别实际执行端与版本；平台提供的硬编候选不等于本轮实际使用的后端。已有Mac案例只作为该环境的测量，不把倍速、VideoToolbox或固定命令移植成Windows／Linux默认配置。
+
 WebCodecs是浏览器内置接口。只有选择该路径时，才需要在实际导出进程中确认安全上下文、`VideoEncoder`／`VideoFrame`及实际使用的解码接口；Node.js存在或系统安装了浏览器不能代替这一步。网页部署通常使用HTTPS；符合条件的localhost可用于本地开发。[接口](https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API)、[安全上下文](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts)
 
 使用本次完整视频配置调用`VideoEncoder.isConfigSupported()`，按需检查解码和音频配置。检测通过只说明配置支持，不证明本次实际用了硬件，也不证明字幕合成与MP4输出已接好。[配置检测](https://developer.mozilla.org/en-US/docs/Web/API/VideoEncoder/isConfigSupported_static)
